@@ -1,2 +1,2 @@
-/Tests/
-!/Tests/**/InferenceFix1.Rdata
+/Tests/*/
+!/Tests/*/InferenceFix1.Rdata
