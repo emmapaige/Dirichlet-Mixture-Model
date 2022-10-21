@@ -4,6 +4,8 @@
 #SBATCH --time=30:00
 #SBATCH --mem=5120
 
+# please note that this is a quick & dirty script that is set up in a UNC specific enviornment
+
 module add bbmap
 
 DATADIR="data/*"
