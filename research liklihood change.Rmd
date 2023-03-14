@@ -1,0 +1,149 @@
+---
+title: "New Posterior"
+author: "Emma Mitchell"
+date: "2023-01-30"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+##Goal: Give our model a tuning parameter that allows us to avoid over clutering
+
+```{r,echo=FALSE,include=FALSE}
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(matrixStats)
+```
+
+## Data
+
+First I will generate simple multinomial data as an easy example.
+
+```{r}
+#set.seed(124)
+#data=rmultinom(5, size = 25, prob = c(.25,.25,.25,.25,.25))
+#data=t(data)
+```
+
+```{r}
+
+inf_sum_approx <- function(a, N, L) {
+  r = seq(a, N)
+  results = r * log(L) - L - lgamma(r - a + 1) - N * log(r)
+  return(logSumExp(results, na.rm = TRUE))
+}
+
+LP <- function(data, C, L = 10) {
+  J = dim(data)[2]
+  Y = data
+  N = dim(data)[1]
+  a = length(unique(C))
+  Vec = rep(0, a)
+  ### Case 1: Y is a vector (we are at the end of the tree)
+  
+  if (is.null(dim(Y)) == TRUE) {
+    lp = sum(lgamma(Y + (1 / J ^ 2))) - lgamma(sum(Y)+(1/J)) + inf_sum_approx(a = 1, N = 1, L) + lgamma(1 / J) - J * lgamma(1 / J ^ 2)
+  }
+  
+  ### Case 2: Y is a matrix
+  else{
+    for (k in 1:a) {
+      I = which(C == k)
+      #Case 2.1: I is empty
+      if (length(I) == 0){
+        Vec[k] = J * lgamma(1 / J ^ 2) - lgamma(1 / J)
+      }
+      #Case 2.2: I contains one number
+      if (length(I) == 1) {
+        Vec[k] = sum(lgamma(N * Y[, I] + (1 / J ^ 2))) - lgamma(sum(Y[, I]) +
+                                                                  (1 / J))
+      }
+      #Case 2.3: I is a set of numbers
+      else{
+        Vec[k] = sum(lgamma(rowSums(Y[, I]) + (1 / J ^ 2))) - lgamma(colSums(Y[, I]) +
+                                                                       (1 / J))
+      }
+    }
+    lp = sum(Vec) + inf_sum_approx(a, N, L) + a * lgamma(1 / J) - J * a *
+      lgamma(1 / J ^ 2)
+  }
+  return(lp)
+}
+
+```
+
+Try an easy example
+```{r}
+data <- data.frame(c(1,2,3),c(2,2,2))
+data 
+#C <- kmeans(t(data),1)[[1]]
+#C <- 1
+C <- c(2,2,2)
+
+LP(data, C, L = 1)
+```
+
+
+Below is the code done by Jenny for the log posterior
+
+```{r}
+LP_old<-function(Y,C,K,a) #a is the even weight in the Dirichlet prior, whose concentration=5a.
+{  
+  J=nrow(Y)
+  lgempty=J*lgamma(a)-lgamma(J*a) # (1)
+  if (is.null(dim(Y))==T)  # impossible?
+  {	
+    lp=sum(lgamma(Y+a))-lgamma(sum(Y)+a*J)+(K-1)*lgempty #?
+  }
+  else 
+  {	
+    M=colSums(Y)
+    kk=rep(0,K)
+    for (k in 1:K)
+    {
+      ind=which(C==k)	
+      if (length(ind)==0) {kk[k]=lgempty}
+      else if (length(ind)==1) {kk[k]=sum(lgamma(Y[,ind]+a))-lgamma(M[ind]+J*a)} # (1)
+      else {kk[k]=sum(lgamma(rowSums(Y[,ind])+a))-lgamma(sum(M[ind])+J*a)}
+    }
+    lp=sum(kk) # (1)
+  }
+  return(lp)
+}
+
+```
+
+## Plot 
+
+```{r}
+l=c(.0001,.01,.1,.2,.3,.4,1,5)
+
+make_my_dat= function(l)
+{ 
+  my_dat=rep(0,length(l))
+  iter = 1
+  for (i in l){
+    my_dat[iter]=LP(data,seq(1,ncol(data),1),2,a=1/(nrow(data)^2),L=i)
+    iter = iter + 1
+  }
+    return(my_dat)
+}
+
+tuning_dat=data.frame(x=l,y=make_my_dat(l))
+
+# Plot
+tuning_dat %>%
+  tail(10) %>%
+  ggplot( aes(x=x, y=y)) +
+    geom_line( color="grey") +
+    geom_point(shape=21, color="black", fill="#69b3a2", size=2) +
+    #theme_ipsum() +
+    geom_hline(aes(yintercept = LP_old(data,seq(1,ncol(data),1),2,a=1/(nrow(data)^2)))) +
+    geom_text(aes(0,LP_old(data,seq(1,ncol(data),1),2,a=1/(nrow(data)^2)),label = "Jenny's log likelihood",vjust=2,hjust=-2.3)) +
+    labs(x = "Tuning Parameter Value", y="Log Liklihood")
+    
+
+```
+
+We can see for different values of lambda our new log likelihood never seems to reach the same value as the old. Is this concerning? My goal was to try to run the code (with flu data) using a value of lambda that would give us similar results to Jenny as a starting point. 

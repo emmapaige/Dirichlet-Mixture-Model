@@ -1,0 +1,81 @@
+---
+title: "Fix_Tree"
+author: "Emma Mitchell"
+date: "2023-03-13"
+output: html_document
+---
+
+```{r}
+library(matrixStats)
+#load('Rdata/rawdata.Rdata')
+Data = data.frame(c(0,0,0),c(1,2,3),c(1,1,1))
+Data
+```
+
+
+```{r}
+## change here maximum of K and a
+inf_sum_approx <- function(u, K, N, L) {
+  r = seq(u, max(u,K))
+          results = r * log(L) - L - lgamma(r - u + 1) - N * log(r)
+          return(logSumExp(results, na.rm = TRUE))
+}
+
+LP_Emma <- function(Y, C, K, a, L = 10) #a is the even weight in the Dirichlet prior, whose concentration=5a.
+{ 
+  J = nrow(Y)
+  u = length(unique(C))
+  Vec = rep(0, u)
+  ### Case 1: Y is a vector (we are at the end of the tree)
+  
+  if (is.null(dim(Y)) == TRUE) {
+    #lp = sum(lgamma(Y + (1 / J ^ 2))) - lgamma(sum(Y)+(1/J)) + inf_sum_approx(a = 1, N = 1, L) + lgamma(1 / J) - J * lgamma(1 / J ^ 2)
+    print("ERROR Y US A VECTOR")
+  }
+  
+  ### Case 2: Y is a matrix
+  else{
+    for (k in unique(C)) #k in unique C
+      {
+      I = which(C == k) 
+      
+      #Case 2.1: I is empty
+      if (length(I) == 0){
+        #Vec[k] = J * lgamma(1 / J ^ 2) - lgamma(1 / J)
+        print("ERROR I EMPTY")
+      }
+      
+      #Case 2.2: I contains one number
+      if (length(I) == 1) {
+        Vec[k] = sum(lgamma( Y[, I] + (1 / J ^ 2))) - lgamma(sum(Y[, I]) +
+                                                               (1 / J))
+      }
+      #Case 2.3: I is a set of numbers
+      else{
+        Vec[k] = sum(lgamma(rowSums(Y[, I]) + (1 / J ^ 2))) - lgamma(sum(Y[, I]) + 
+                                                                       (1 / J))
+        #change here second lgamma should be a real number
+      }
+    }
+    lp = sum(Vec) + inf_sum_approx(u, K, N, L) + u * lgamma(1 / J) - J * u *
+      lgamma(1 / J ^ 2)
+  }
+  return(lp)
+}
+```
+
+```{r}
+a = "help"
+N = ncol(Data)
+N
+Y = Data
+Y
+C = kmeans(t(Y),2)[[1]]
+C
+K = 2
+K
+
+
+LP_Emma(Y, C, K, a, L = 10)
+```
+

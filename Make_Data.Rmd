@@ -1,0 +1,67 @@
+---
+title: "Make_Data"
+author: "Emma Mitchell"
+date: "2023-03-13"
+output: html_document
+---
+
+Load libraries
+```{r}
+library(bmixture)
+```
+
+Function that creates test data. Places the data into folder called Rdata.
+```{r}
+createtestdata<-function(K0 = 15, newK = 5, d = 5, n = 300, 
+                         sitect = 5000, tests = 4, postD = 4 )
+{
+  PP = sapply( 1:K0, function(x){ return( NucleoProb( d ) ) } )
+  newPP = apply( PP[ , 1:newK ], 2, NewNucleoProb )
+  b = n / K0
+  rawdata = matrix( NA, nrow = d, ncol = tests * n ) # tests*n?
+  for( i in 1:K0 ){
+    for( t in 1:tests ){
+      rawdata[ , ( b * ( i - 1 ) + 1 ) : ( b * i ) + n * ( t - 1 ) ] = 
+        rmultinom( b, sitect, PP[ , i ] )  
+    }
+  }
+  for( i in 1:newK ){
+    for( t in postD ){
+      rawdata[ , ( b * ( i - 1 ) + 1 ) + n * ( t - 1 ) ] = 
+        rmultinom( 1, sitect, newPP[ , i ] )  
+    }
+  }
+  save(rawdata, PP, newPP, tests, sitect, postD, 
+        file = paste("Rdata/rawdata",".Rdata",sep=""))
+  return(paste("Rawdata"," created!",sep=""))
+}
+```
+
+```{r}
+NucleoProb = function( J, J.main = 4 ){ 
+  #J: number of possible reads; J.main: number of possible invariant reads 
+  p = runif( J )
+  main = rep( 0, J )
+  r = runif(1)
+  if( r > .5 ){ main[ sample.int( J.main, size = 1 ) ] = 100  
+  }else if( r > .25 ){ main[ sample.int( J.main, size = 2 ) ] = c(25, 75)  
+  }else{ main[ sample.int( J.main, size = 2 ) ] = c(50, 50) } 
+  newp = rdirichlet( 1, p + main ) 
+  return( newp )  
+}
+#Let the second largest element of newp be 10, and normalize newp
+NewNucleoProb = function( oldp, read.main = 4 ){
+  oldp.main = oldp[ 1:read.main ]
+  oldp.2max = which( oldp.main == sort( oldp.main, decreasing = T )[2] )
+  newp = oldp; newp[ oldp.2max ] = 10; newp = newp / sum( newp )
+  return( newp )
+}
+```
+
+
+Use function to create data with 3 tests 100 each.
+```{r}
+PostD = 3; K.control = 5; K.mut = 5; J = 5; n = 100; m = 500; J = 5;
+createtestdata(K0 = K.control, newK = K.mut, d = J, n = n, sitect = m, tests = max(PostD), 
+                postD = PostD )
+```
