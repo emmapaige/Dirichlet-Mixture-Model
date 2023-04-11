@@ -7,75 +7,229 @@ output: html_document
 
 ```{r}
 library(matrixStats)
-#load('Rdata/rawdata.Rdata')
-Data = data.frame(c(0,0,0),c(1,2,3),c(1,1,1))
-Data
+load('Rdata/rawdata.Rdata')
+#Data = c(0,0,0)
+
 ```
 
 
 ```{r}
-## change here maximum of K and a
-inf_sum_approx <- function(u, K, N, L) {
+inf_sum_approx <- function(u, K, Num, L) {
   r = seq(u, max(u,K))
-          results = r * log(L) - L - lgamma(r - u + 1) - N * log(r)
-          return(logSumExp(results, na.rm = TRUE))
+  results = r * log(L) - L - lgamma(r - u + 1) - Num * log(r)
+  return(logSumExp(results, na.rm = TRUE))
 }
 
-LP_Emma <- function(Y, C, K, a, L = 10) #a is the even weight in the Dirichlet prior, whose concentration=5a.
+LP_Emma <- function(Y, C, K, a, Num, L = 10) #a is the even weight in the Dirichlet prior, whose concentration=5a.
 { 
   J = nrow(Y)
   u = length(unique(C))
-  Vec = rep(0, u)
-  ### Case 1: Y is a vector (we are at the end of the tree)
+  ### Case 1: Y is a vector 
   
   if (is.null(dim(Y)) == TRUE) {
-    #lp = sum(lgamma(Y + (1 / J ^ 2))) - lgamma(sum(Y)+(1/J)) + inf_sum_approx(a = 1, N = 1, L) + lgamma(1 / J) - J * lgamma(1 / J ^ 2)
-    print("ERROR Y US A VECTOR")
+    lp = sum(lgamma(Y + (1 / J ^ 2))) - lgamma(sum(Y)+(1/J)) + inf_sum_approx(u, K, Num, L) + u * lgamma(1 / J) - J * u *   lgamma(1 / J ^ 2)
+    warning("Y IS A VECTOR in LP_Emma")
   }
   
   ### Case 2: Y is a matrix
   else{
+    M=colSums(Y)
+    Vec = rep(0, u)
     for (k in unique(C)) #k in unique C
-      {
-      I = which(C == k) 
-      
+    {
+      I=which(C==k)
       #Case 2.1: I is empty
       if (length(I) == 0){
         #Vec[k] = J * lgamma(1 / J ^ 2) - lgamma(1 / J)
-        print("ERROR I EMPTY")
+        stop("ERROR I EMPTY in LP_Emma")
       }
       
       #Case 2.2: I contains one number
       if (length(I) == 1) {
-        Vec[k] = sum(lgamma( Y[, I] + (1 / J ^ 2))) - lgamma(sum(Y[, I]) +
+        Vec[k] = sum(lgamma( Y[, I] + (1 / J ^ 2))) - lgamma((M[I]) +
                                                                (1 / J))
       }
       #Case 2.3: I is a set of numbers
       else{
-        Vec[k] = sum(lgamma(rowSums(Y[, I]) + (1 / J ^ 2))) - lgamma(sum(Y[, I]) + 
+        Vec[k] = sum(lgamma(rowSums(Y[, I]) + (1 / J ^ 2))) - lgamma(sum(M[I]) +
                                                                        (1 / J))
-        #change here second lgamma should be a real number
+        #print(Vec)
       }
     }
-    lp = sum(Vec) + inf_sum_approx(u, K, N, L) + u * lgamma(1 / J) - J * u *
-      lgamma(1 / J ^ 2)
+    lp = sum(Vec) + inf_sum_approx(u, K, Num, L) + u * lgamma(1 / J) - J * u *   lgamma(1 / J ^ 2)
   }
   return(lp)
 }
+
+```
+
+```{r}
+inf_sum_approx <- function(u, K, Num, L) {
+  r = seq(u, max(u, K))
+  results = r * log(L) - L - lgamma(r - u + 1) - Num * log(r)
+  return(logSumExp(results, na.rm = TRUE))
+}
+
+LP_Emma <-
+  function(Y, C, K, a, Num, L = 10)
+    #a is the even weight in the Dirichlet prior, whose concentration=5a.
+  {
+    J = nrow(Y)
+    u = length(unique(C))
+    ### Case 1: Y is a vector
+    
+    if (is.null(dim(Y)) == TRUE) {
+      lp = sum(lgamma(Y + (1 / J ^ 2))) - lgamma(sum(Y) + (1 / J)) + inf_sum_approx(u, K, Num, L) + u * lgamma(1 / J) - J * u * lgamma(1 / J ^ 2)
+      warning("Y IS A VECTOR in LP_Emma")
+    }
+    
+    ### Case 2: Y is a matrix
+    M = colSums(Y)
+    Vec = rep(0, u)
+    for (k in unique(C)) {
+      #k in unique C
+      for (j in 1:u) {
+        I = which(C == k)
+        #Case 2.1: I is empty
+        if (length(I) == 0) {
+          #Vec[k] = J * lgamma(1 / J ^ 2) - lgamma(1 / J)
+          stop("ERROR I EMPTY in LP_Emma")
+        }
+        
+        #Case 2.2: I contains one number
+        if (length(I) == 1) {
+          Vec[j] = sum(lgamma(Y[, I] + (1 / J ^ 2))) - lgamma((M[I]) +
+                                                                (1 / J))
+          #print(Vec)
+        }
+        #Case 2.3: I is a set of numbers
+        else{
+          Vec[j] = sum(lgamma(rowSums(Y[, I]) + (1 / J ^ 2))) - lgamma(sum(M[I]) +
+                                                                         (1 / J))
+          #print(Vec[k])
+        }
+      }
+    }
+    lp = sum(Vec) + inf_sum_approx(u, K, Num, L) + u * lgamma(1 / J) - J * u *   lgamma(1 / J ^ 2)
+    
+    return(lp)
+  }
+```
+
+```{r}
+inf_sum_approx <- function(u, K, Num, L) {
+  r = seq(u, max(u, K))
+  results = r * log(L) - L - lgamma(r - u + 1) - Num * log(r)
+  return(logSumExp(results, na.rm = TRUE))
+}
+
+LP_Emma <-
+  function(Y, C, K, a, Num, L = 10)
+    #a is the even weight in the Dirichlet prior, whose concentration=5a.
+  {
+    J = nrow(Y)
+    u = length(unique(C))
+    ### Case 1: Y is a vector
+    
+    if (is.null(dim(Y)) == TRUE) {
+      lp = sum(lgamma(Y + (1 / J ^ 2))) - lgamma(sum(Y) + (1 / J)) + inf_sum_approx(u, K, Num, L) + u * lgamma(1 / J) - J * u * lgamma(1 / J ^ 2)
+      warning("Y IS A VECTOR in LP_Emma")
+    }
+    
+    ### Case 2: Y is a matrix
+    M = colSums(Y)
+    Vec = rep(0, u)
+    for (k in unique(C)) {
+      #k in unique C
+        I = which(C == k)
+        #Case 2.1: I is empty
+        if (length(I) == 0) {
+          #Vec[k] = J * lgamma(1 / J ^ 2) - lgamma(1 / J)
+          stop("ERROR I EMPTY in LP_Emma")
+        }
+        
+        #Case 2.2: I contains one number
+        if (length(I) == 1) {
+          Vec[which(unique(C)==k)] = sum(lgamma(Y[, I] + (1 / J ^ 2))) - lgamma((M[I]) +
+                                                                (1 / J))
+          #print(Vec)
+        }
+        #Case 2.3: I is a set of numbers
+        else{
+          Vec[which(unique(C)==k)] = sum(lgamma(rowSums(Y[, I]) + (1 / J ^ 2))) - lgamma(sum(M[I]) +
+                                                                         (1 / J))
+          #print(Vec[k])
+        }
+      }
+    lp = sum(Vec) + inf_sum_approx(u, K, Num, L) + u * lgamma(1 / J) - J * u *   lgamma(1 / J ^ 2)
+    
+    return(lp)
+  }
 ```
 
 ```{r}
 a = "help"
-N = ncol(Data)
-N
-Y = Data
-Y
-C = kmeans(t(Y),2)[[1]]
-C
+Num = ncol(rawdata)
+
+Y = rawdata[,5:8]
+
+#C = kmeans(t(Y),2)[[1]]
+C = 0
 K = 2
-K
 
 
-LP_Emma(Y, C, K, a, L = 10)
+Rprof("exampleLP.out")
+LP_Emma(Y, C, K, a, Num, L = 10)
+Rprof(NULL)
+sumStats <- summaryRprof("exampleLP.out")
+saveRDS(sumStats, file="sumStats.RData")
+
+###CPU TIME PLOT
+
+# require(ggplot2)
+# 
+# byself <- sumStats$by.self
+# 
+# byself$functions <- rownames(byself)
+# 
+# m <- melt(byself, id.var = "functions")
+# 
+# qplot(functions, value, data = m, fill = variable, geom = "bar", position = "dodge")
+
+```
+
+```{r}
+data <- matrix(c(228, 0, 0, 0, 0, 0, 0, 64, 42, 44, 65, 30, 2327, 1566, 1441,
+                 42260, 5483, 3984, 3981, 3486, 4977, 15825, 3951, 1661, 2616, 5623, 4810, 298, 154, 176,
+                 7, 0, 0, 0, 0, 0, 0, 24, 0, 30, 24, 12, 89, 40, 31,
+                 0, 17, 16, 19, 14, 21, 175, 4945, 1793, 2803, 5771, 5148, 7243, 4709, 4849,
+                 5, 0, 0, 0, 0, 2, 0, 16, 4, 7, 17, 0, 43, 31, 3,1069, 111, 14, 3796, 10, 
+                 1199, 147, 46, 4591, 17, 
+                 1124, 169, 61, 4140, 6, 
+                 2698, 227, 3075, 0, 0, 
+                 1599, 120, 1781, 0, 0, 
+                 2956, 176, 3368, 0, 0, 
+                 2236, 140, 2624, 0, 0, 
+                 2453, 151, 2896, 0, 0, 
+                 2366, 127, 2507, 0, 0, 
+                 1976, 108, 2416, 0, 0, 
+                 1826, 90, 2084, 0, 0, 
+                 459, 2, 0, 38, 1),
+               nrow = 5, byrow = TRUE)
+
+df <- as.data.frame(data)
+
+print(df)
+dim(df)
+
+K = 27
+a = .04
+Num = 400
+BC = c(8, 19, 22, 22, 22, 22, 18, 9, 12, 10, 10, 15, 14, 14, 13, 13, 7, 7, 16, 16, 24, 24, 24, 24, 24, 24, 11)
+length(BC)
+u = length(unique(BC))
+LP_Emma(df,BC,K,a,Num)
+
+#Why is this happening???
 ```
 
